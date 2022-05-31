@@ -160,7 +160,10 @@ def wd_login(xuhao, mima):
             }
 
             render_url = "https://yqtb.gzhu.edu.cn/infoplus/interface/render"
-            render_page = s.post(render_url, headers=headers, data=render_data)
+            render_page = s.post(render_url,
+                                 headers=headers,
+                                 data=render_data,
+                                 timeout=30)
 
             formData = json.loads(render_page.content)['entities'][0]['data']
             formData["fieldJBXXdrsfwc"] = '2'
@@ -189,7 +192,8 @@ def wd_login(xuhao, mima):
             doAction_url = "https://yqtb.gzhu.edu.cn/infoplus/interface/doAction"
             doAction_page = s.post(doAction_url,
                                    headers=headers,
-                                   data=doAction_data)
+                                   data=doAction_data,
+                                   timeout=30)
 
             if (json.loads(doAction_page.content)["error"]) == "打卡成功":
                 logger.info("健康打卡成功")
