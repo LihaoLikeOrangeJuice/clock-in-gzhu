@@ -1,13 +1,15 @@
+import json
 import os
+import time
 import traceback
 
+import requests
 import selenium.webdriver
 from loguru import logger
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.relative_locator import locate_with
 from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -37,6 +39,7 @@ def launch_webdriver():
 def wd_login(xuhao, mima):
     driver = launch_webdriver()
     wdwait = WebDriverWait(driver, 30)
+    s = requests.Session()
 
     # pageName用来表示当前页面标题
     # 0表示初始页面，Unified Identity Authentication页面，统一身份认证页面和其它页面
@@ -117,47 +120,17 @@ def wd_login(xuhao, mima):
                         (By.XPATH,
                          "//div[@align='right']/input[@type='checkbox']")))
 
-                logger.info('开始填表')
-                for xpath in [
-                        "//div[@align='right']/input[@type='checkbox']",
-                        "//nobr[contains(text(), '提交')]/.."
-                ]:
-                    driver.find_element(By.XPATH, xpath).click()
+                cookies = driver.get_cookies()
+                for cookie in cookies:
+                    s.cookies.set(cookie['name'], cookie['value'])
 
-                wdwait.until(
-                    EC.element_to_be_clickable(
-                        (By.XPATH,
-                         "//button[@class='dialog_button default fr']"
-                         ))).click()
+                referer_url = driver.current_url
+                csrfToken = driver.find_element(
+                    By.XPATH,
+                    "//meta[@itemscope='csrfToken']").get_attribute("content")
+                stepId = referer_url.split("/")[-2]
 
-                formErrorContentList = driver.find_elements(
-                    By.XPATH, "//div[@class='line10']")
-
-                for formErrorContent in formErrorContentList:
-                    button = driver.find_elements(
-                        locate_with(By.XPATH, "//input[@type='radio']").below(
-                            formErrorContent))[0]
-                    driver.execute_script("$(arguments[0]).click();", button)
-
-                logger.info('尝试提交表单')
-                driver.find_element(
-                    By.XPATH, "//nobr[contains(text(), '提交')]/..").click()
-
-                wdwait.until(
-                    EC.element_to_be_clickable(
-                        (By.XPATH,
-                         "//button[@class='dialog_button default fr']")))
-
-                message = driver.execute_script(
-                    "return document.getElementsByClassName('form_do_action_error')[0]['textContent']"
-                )
-                logger.info(message)
-
-                if message == '打卡成功':
-                    logger.info("打卡成功")
-                    break
-                else:
-                    logger.info('重新进行打卡')
+                break
         except Exception:
             logger.error(traceback.format_exc())
             logger.error(f"第{retries+1}次运行失败")
@@ -167,6 +140,72 @@ def wd_login(xuhao, mima):
                 notification = 1
 
     driver.quit()
+
+    for retries in range(10):
+        try:
+            data = {
+                "stepId": stepId,
+                "instanceId": "",
+                "admin": "false",
+                "rand": "774.7022920739238",
+                "width": "432",
+                "lang": "en",
+                "csrfToken": csrfToken
+            }
+
+            form_headers = {
+                "User-Agent":
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36 Edg/101.0.1210.53",
+                "Referer": referer_url,
+            }
+
+            render_url = "https://yqtb.gzhu.edu.cn/infoplus/interface/render"
+            page = s.post(render_url, headers=form_headers, data=data)
+            dict_page = json.loads(page.text)
+
+            formData = dict_page['entities'][0]['data']
+            formData["fieldJBXXdrsfwc"] = '2'
+            formData['fieldSTQKbrstzk1'] = '1'
+            formData['fieldJKMsfwlm'] = '1'
+            formData['fieldYQJLsfjcqtbl'] = '2'
+            formData['fieldCXXXsftjhb'] = '2'
+            formData['fieldCNS'] = True
+
+            json_data = json.dumps(formData)
+
+            data = {
+                "stepId": stepId,
+                "actionId": "1",
+                "remark": "",
+                "formData": json_data,
+                "timestamp": str(int(time.time())),
+                "rand": "170.51853138736112",
+                "nextUsers": "{}",
+                "boundFields":
+                "fieldSTQKzdjgmc,fieldSTQKjtcyglkssj,fieldYMTGSzd,fieldCXXXsftjhb,fieldJCDDqmsjtdd,fieldYQJLksjcsj,fieldSTQKjtcyzd,fieldJBXXjgsjtdz,fieldSTQKbrstzk,fieldSTQKfrtw,fieldSTQKjtcyqt,fieldCXXXjtfslc,fieldJBXXlxfs,fieldSTQKxgqksm,fieldSTQKpcsj,fieldJKMsfwlm,fieldJKHDDzt,fieldYQJLsfjcqtbl,fieldYQJLzhycjcsj,fieldSTQKfl,fieldSTQKhxkn,fieldJBXXbz,fieldCXXXsfylk,fieldFLid,fieldjgs,fieldSTQKglfs,fieldCXXXsfjcgyshqzbl,fieldSTQKjtcyfx,fieldCXXXszsqsfyyshqzbl,fieldJCDDshi,fieldSTQKrytsqkqsm,fieldJCDDs,fieldSTQKjtcyfs,fieldSTQKjtcyzljgmc,fieldSQSJ,fieldJZDZC,fieldJBXXnj,fieldSTQKjtcyzdkssj,fieldSTQKfx,fieldSTQKfs,fieldYQJLjcdry,fieldCXXXjtfsdb,fieldCXXXcxzt,fieldYQJLjcddshi,fieldCXXXjtjtzz,fieldCXXXsftjhbs,fieldHQRQ,fieldSTQKjtcyqtms,fieldCXXXksjcsj,fieldSTQKzdkssj,fieldSTQKfxx,fieldSTQKjtcyzysj,fieldjgshi,fieldSTQKjtcyxm,fieldJBXXsheng,fieldZJYCHSJCYXJGRQzd,fieldJBXXdrsfwc,fieldqjymsjtqk,fieldJBXXdw,fieldCXXXjcdr,fieldCXXXsftjhbjtdz,fieldJCDDq,fieldSFJZYM,fieldSTQKjtcyclfs,fieldSTQKxm,fieldCXXXjtgjbc,fieldSTQKjtcygldd,fieldSTQKjtcyzdjgmcc,fieldSTQKzd,fieldSTQKqt,fieldCXXXlksj,fieldSTQKjtcyfrsj,fieldCXXXjtfsqtms,fieldSTQKjtcyzdmc,fieldCXXXjtfsfj,fieldJBXXfdy,fieldSTQKjtcyjmy,fieldJBXXxm,fieldJKMjt,fieldSTQKzljgmc,fieldCXXXzhycjcsj,fieldCXXXsftjhbq,fieldSTQKqtms,fieldYCFDY,fieldJBXXxb,fieldSTQKglkssj,fieldCXXXjtfspc,fieldSTQKbrstzk1,fieldYCBJ,fieldCXXXssh,fieldSTQKzysj,fieldLYYZM,fieldJBXXgh,fieldCNS,fieldCXXXfxxq,fieldSTQKclfs,fieldSTQKqtqksm,fieldCXXXqjymsxgqk,fieldYCBZ,fieldSTQKjmy,fieldSTQKjtcyxjwjjt,fieldJBXXxnjzbgdz,fieldSTQKjtcyfl,fieldSTQKjtcyzdjgmc,fieldCXXXddsj,fieldSTQKfrsj,fieldSTQKgldd,fieldCXXXfxcfsj,fieldJBXXbj,fieldSTQKjtcyfxx,fieldSTQKks,fieldJBXXcsny,fieldCXXXjtzzq,fieldJBXXJG,fieldCXXXdqszd,fieldCXXXjtzzs,fieldJBXXshi,fieldSTQKjtcyfrtw,fieldSTQKjtcystzk1,fieldCXXXjcdqk,fieldSTQKzdmc,fieldSFJZYMyczd,fieldSTQKjtcyks,fieldSTQKjtcystzk,fieldCXXXjtfshc,fieldYMTGSzdqt,fieldCXXXcqwdq,fieldSTQKxjwjjt,fieldSTQKjtcypcsj,fieldJBXXqu,fieldSTQKlt,fieldYMJZRQzd,fieldJBXXjgshi,fieldYQJLjcddq,fieldYQJLjcdryjkqk,fieldYQJLjcdds,fieldSTQKjtcyhxkn,fieldCXXXjtzz,fieldJBXXjgq,fieldCXXXjtfsqt,fieldJBXXjgs,fieldSTQKjtcylt,fieldSTQKzdjgmcc,fieldJBXXqjtxxqk,fieldDQSJ,fieldSTQKjtcyglfs,",
+                "csrfToken": csrfToken,
+                "lang": "en"
+            }
+
+            last_url = "https://yqtb.gzhu.edu.cn/infoplus/interface/doAction"
+            page = s.post(last_url, headers=form_headers, data=data)
+
+            if (json.loads(page.content)["error"]) == "打卡成功":
+                logger.info("健康打卡成功")
+                logger.info(page.text)
+                break
+            else:
+                logger.error("健康打卡失败")
+                logger.error(page.text)
+
+                logger.info("重新进行打卡")
+        except Exception:
+            logger.error(traceback.format_exc())
+            logger.error(f"第{retries+1}次运行失败")
+
+            # retries == 9代表最后一次循环，如果这次循环仍然异常，则
+            if retries == 9:
+                notification = 1
 
     if notification == 1:
         logger.critical('打卡失败，尝试抛出异常，以便github邮件通知打卡失败')
