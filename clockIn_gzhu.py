@@ -124,11 +124,11 @@ def wd_login(xuhao, mima):
                 for cookie in cookies:
                     s.cookies.set(cookie['name'], cookie['value'])
 
-                referer_url = driver.current_url
+                referer = driver.current_url
                 csrfToken = driver.find_element(
                     By.XPATH,
                     "//meta[@itemscope='csrfToken']").get_attribute("content")
-                stepId = referer_url.split("/")[-2]
+                stepId = referer.split("/")[-2]
 
                 break
         except Exception:
@@ -143,7 +143,7 @@ def wd_login(xuhao, mima):
 
     for retries in range(10):
         try:
-            data = {
+            render_data = {
                 "stepId": stepId,
                 "instanceId": "",
                 "admin": "false",
@@ -153,14 +153,14 @@ def wd_login(xuhao, mima):
                 "csrfToken": csrfToken
             }
 
-            form_headers = {
+            headers = {
                 "User-Agent":
                 "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36 Edg/101.0.1210.53",
-                "Referer": referer_url,
+                "Referer": referer,
             }
 
             render_url = "https://yqtb.gzhu.edu.cn/infoplus/interface/render"
-            page = s.post(render_url, headers=form_headers, data=data)
+            page = s.post(render_url, headers=headers, data=render_data)
             dict_page = json.loads(page.text)
 
             formData = dict_page['entities'][0]['data']
@@ -171,13 +171,13 @@ def wd_login(xuhao, mima):
             formData['fieldCXXXsftjhb'] = '2'
             formData['fieldCNS'] = True
 
-            json_data = json.dumps(formData)
+            json_formData = json.dumps(formData)
 
-            data = {
+            doAction_data = {
                 "stepId": stepId,
                 "actionId": "1",
                 "remark": "",
-                "formData": json_data,
+                "formData": json_formData,
                 "timestamp": str(int(time.time())),
                 "rand": "170.51853138736112",
                 "nextUsers": "{}",
@@ -187,8 +187,8 @@ def wd_login(xuhao, mima):
                 "lang": "en"
             }
 
-            last_url = "https://yqtb.gzhu.edu.cn/infoplus/interface/doAction"
-            page = s.post(last_url, headers=form_headers, data=data)
+            doAction_url = "https://yqtb.gzhu.edu.cn/infoplus/interface/doAction"
+            page = s.post(doAction_url, headers=headers, data=doAction_data)
 
             if (json.loads(page.content)["error"]) == "打卡成功":
                 logger.info("健康打卡成功")
