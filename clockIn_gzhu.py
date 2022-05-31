@@ -160,10 +160,9 @@ def wd_login(xuhao, mima):
             }
 
             render_url = "https://yqtb.gzhu.edu.cn/infoplus/interface/render"
-            page = s.post(render_url, headers=headers, data=render_data)
-            dict_page = json.loads(page.text)
+            render_page = s.post(render_url, headers=headers, data=render_data)
 
-            formData = dict_page['entities'][0]['data']
+            formData = json.loads(render_page.content)['entities'][0]['data']
             formData["fieldJBXXdrsfwc"] = '2'
             formData['fieldSTQKbrstzk1'] = '1'
             formData['fieldJKMsfwlm'] = '1'
@@ -188,15 +187,17 @@ def wd_login(xuhao, mima):
             }
 
             doAction_url = "https://yqtb.gzhu.edu.cn/infoplus/interface/doAction"
-            page = s.post(doAction_url, headers=headers, data=doAction_data)
+            doAction_page = s.post(doAction_url,
+                                   headers=headers,
+                                   data=doAction_data)
 
-            if (json.loads(page.content)["error"]) == "打卡成功":
+            if (json.loads(doAction_page.content)["error"]) == "打卡成功":
                 logger.info("健康打卡成功")
-                logger.info(page.text)
+                logger.info(doAction_page.text)
                 break
             else:
                 logger.error("健康打卡失败")
-                logger.error(page.text)
+                logger.error(doAction_page.text)
 
                 logger.info("重新进行打卡")
         except Exception:
