@@ -23,4 +23,4 @@ jobs:
           XUHAO: ${{ secrets.XUHAO }}
           MIMA: ${{ secrets.MIMA }}
           PUSHPLUS: ${{ secrets.PUSHPLUS }}
-        run: python clock_in.py
+        run: python clockIn_gzhu.py
